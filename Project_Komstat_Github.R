@@ -68,50 +68,50 @@ ui <- page_navbar(
         "Correlation and Regression",
         "F tests"
       )
-    )
+    ),
+  
+    uiOutput("stat_test_ui"),
+    
+    selectInput(
+      "power_type",
+      "Type of Power Analysis",
+      choices = c(
+        "A priori: Compute required sample size",
+        "Post hoc: Compute achieved power",
+        "Sensitivity: Compute effect size"
+      )
+    ), 
+    
+    sliderInput(
+      "power",
+      "Power",
+      min = 0.50,
+      max = 0.99,
+      value = 0.80
+    ),
+    
+    sliderInput(
+      "sig_level",
+      "Alpha",
+      min = 0.01,
+      max = 0.10,
+      value = 0.05
+    ),
+    
+    numericInput(
+      "effect",
+      "Effect Size",
+      value = 0.5,
+      step = 0.1
+    ),
+    
+    actionButton(
+      "calc",
+      "Calculate",
+      class = "btn-primary w-100"
+    ) 
   ),
   
-  uiOutput("stat_test_ui"),
-  
-  selectInput(
-    "power_type",
-    "Type of Power Analysis",
-    choices = c(
-      "A priori: Compute required sample size",
-      "Post hoc: Compute achieved power",
-      "Sensitivity: Compute effect size"
-    )
-  ), 
-  
-  sliderInput(
-    "power",
-    "Power",
-    min = 0.50,
-    max = 0.99,
-    value = 0.80
-  ),
-  
-  sliderInput(
-    "sig_level",
-    "Alpha",
-    min = 0.01,
-    max = 0.10,
-    value = 0.05
-  ),
-  
-  numericInput(
-    "effect",
-    "Effect Size",
-    value = 0.5,
-    step = 0.1
-  ),
-  
-  actionButton(
-    "calc",
-    "Calculate",
-    class = "btn-primary w-100"
-  ), 
-
   # ESTIMATOR
   nav_panel(
     "Estimator",
