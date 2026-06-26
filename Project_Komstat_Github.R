@@ -110,4 +110,54 @@ ui <- page_navbar(
     "Calculate",
     class = "btn-primary w-100"
   ), 
+  
+  
+  # ESTIMATOR
+  nav_panel(
+    "Estimator",
+    layout_column_wrap(
+      width = 1,
+      
+      card(
+        card_header("Power Analysis Result"),
+        verbatimTextOutput("result_text")
+      ),
+      
+      card(
+        navset_card_tab(
+          nav_panel(
+            "Central and noncentral distributions",
+            plotOutput("power_plot", height = 500)
+          ),
+          nav_panel(
+            "Protocol of power analyses",
+            verbatimTextOutput("protocol_text")
+          )
+        )
+      )
+    )
+  ),
+  
+  # SENSITIVITY ANALYSIS
+  nav_panel(
+    "Sensitivity Analysis",
+    layout_column_wrap(
+      width = 1/2, 
+      
+      card(
+        card_header("Heatmap Sample Size"),
+        plotOutput("heatmap_plot", height = 400)
+      ),
+      
+      card(
+        card_header("Grafik Hubungan Effect Size & Sample Size"),
+        plotOutput("curve_plot", height = 400)
+      )
+    ),
+    
+    card(
+      card_header("Tabel Berbagai Effect Size & Power Matrix"),
+      tableOutput("sens_table")
+    )
+  ),
 ) 
