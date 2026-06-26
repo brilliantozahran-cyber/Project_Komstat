@@ -160,4 +160,37 @@ ui <- page_navbar(
       tableOutput("sens_table")
     )
   ),
-) 
+  
+  # EFFECT SIZE CALCULATOR
+  nav_panel(
+    "Effect Size Calculator",
+    layout_column_wrap(
+      width = 1/2,
+      
+      card(
+        card_header("Input Nilai Kelompok"),
+        numericInput("mean1", "Mean Kelompok 1 (Kontrol / Pre-test)", value = 50, step = 0.1),
+        numericInput("mean2", "Mean Kelompok 2 (Eksperimen / Pasca-test)", value = 55, step = 0.1),
+        numericInput("sd_pooled", "Standard Deviation (SD) Pooled", value = 10, min = 0.001, step = 0.1),
+        hr(),
+        actionButton("send_effect", "Kirim ke Power Analysis", class = "btn-success w-100")
+      ),
+      
+      card(
+        card_header("Hasil Perhitungan Cohen's d"),
+        uiOutput("cohens_d_result")
+      )
+    )
+  ),
+  
+  # INTERPRETASI OTOMATIS
+  nav_panel(
+    "Automatic Interpretation",
+    card(
+      card_header("Narasi Hasil Analisis (Format Skripsi / Artikel Ilmiah)"),
+      p(class = "text-muted", "Catatan: Pastikan Anda sudah menekan tombol 'Calculate' di sidebar agar narasi ini sinkron dengan data terbaru."),
+      hr(),
+      uiOutput("interpretation_text")
+    )
+  )
+)
