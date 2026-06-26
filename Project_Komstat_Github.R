@@ -265,4 +265,101 @@ server <- function(input, output, session){
       )
     }
   })
+  
+  # Data Generator for Sensitivity Matrix
+  sens_data <- eventReactive(input$calc, {
+    req(input$stat_test)
+    
+    if(input$stat_test == "correlation") {
+      es_seq <- seq(0.1, 0.9, by = 0.1)
+    } else {
+      es_seq <- seq(0.1, 1.2, by = 0.1)
+    }
+    
+    pow_seq <- c(0.70, 0.80, 0.85, 0.90, 0.95)
+    grid <- expand.grid(EffectSize = es_seq, Power = pow_seq)
+    
+    grid$Required_N <- sapply(1:nrow(grid), function(i) {
+      es <- grid$EffectSize[i]
+      p <- grid$Power[i]
+      alpha <- input$sig_level
+      
+      val <- tryCatch({
+        if(input$stat_test %in% c("two.sample","paired","one.sample")){
+          pwr.t.test(d = es, power = p, sig.level = alpha, type = input$stat_test)$n
+        } else if(input$stat_test == "correlation") {
+          pwr.r.test(r = es, power = p, sig.level = alpha)$n
+        } else if(input$stat_test == "anova") {
+          pwr.anova.test(k = 3, f = es, power = p, sig.level = alpha)$n
+        } else if(input$stat_test == "anova.rm") {
+          f_adj <- es / sqrt(1 - 0.5)
+          pwr.anova.test(k = 3, f = f_adj, power = p, sig.level = alpha)$n
+        }
+      }, error = function(e) return(NA))
+      
+      return(ceiling(val))
+    })
+    
+    grid
+  })
+  
+  # Tab 1 Outputs
+  output$result_text <- renderPrint({
+    req(calc_res())
+    print(calc_res())
+  })
+  
+  output$protocol_text <- renderText({
+    req(calc_res())
+    res <- calc_res()
+    
+    stat_name <- switch(
+      input$stat_test,
+      "two.sample" = "Means: Difference between two independent means",
+      "paired" = "Means: Difference between paired means",
+      "one.sample" = "Means: Difference from constant",
+      "correlation" = "Correlation: Bivariate normal model",
+      "anova" = "ANOVA: Fixed effects, omnibus",
+      "anova.rm" = "ANOVA: Repeated measures, within factors"
+    )
+    
+    txt <- paste0(
+      "[1] -- ", format(Sys.time(), "%A, %B %d, %Y -- %H:%M:%S"), "\n\n",
+      input$test_family, " - ", stat_name, "\n\nAnalysis:\n    ", 
+      input$power_type, "\n\nInput:\n    Effect size = ", input$effect,
+      "\n    α err prob = ", input$sig_level, "\n    Power (1-β err prob) = ", input$power, "\n\nOutput:\n"
+    )
+    
+    if(!is.null(res$n)){ txt <- paste0(txt, "    Required sample size = ", ceiling(res$n), "\n") }
+    if(!is.null(res$power)){ txt <- paste0(txt, "    Actual power = ", round(res$power, 6), "\n") }
+    if(!is.null(res$sig.level)){ txt <- paste0(txt, "    Alpha = ", round(res$sig.level, 6)) }
+    txt
+  })
+  
+  output$power_plot <- renderPlot({
+    req(calc_res())
+    
+    effect_seq <- seq(max(0.1, input$effect - 0.8), input$effect + 0.8, length.out = 50)
+    power_vals <- sapply(effect_seq, function(es){
+      if(input$stat_test %in% c("two.sample","paired","one.sample")){
+        pwr.t.test(d = es, sig.level = input$sig_level, n = ceiling(calc_res()$n), type = input$stat_test)$power
+      } else if(input$stat_test == "correlation") {
+        pwr.r.test(r = es, sig.level = input$sig_level, n = ceiling(calc_res()$n))$power
+      } else if(input$stat_test == "anova"){
+        pwr.anova.test(k = 3, f = es, sig.level = input$sig_level, n = ceiling(calc_res()$n))$power
+      } else if(input$stat_test == "anova.rm"){
+        f_adj <- es / sqrt(1 - 0.5)
+        pwr.anova.test(k = 3, f = f_adj, sig.level = input$sig_level, n = ceiling(calc_res()$n))$power
+      }
+    })
+    
+    df <- data.frame(EffectSize = effect_seq, Power = power_vals)
+    
+    ggplot(df, aes(EffectSize, Power)) +
+      geom_line(linewidth = 1.3, colour = "#0073C2FF") +
+      geom_point(size = 2, colour = "#EFC000FF") +
+      geom_hline(yintercept = input$power, linetype = 2, colour = "red") +
+      theme_minimal(base_size = 14) +
+      labs(title = "Power Curve", x = "Effect Size", y = "Power")
+  })
 }
