@@ -69,6 +69,7 @@ ui <- page_navbar(
       )
     )
   ),
+  
   uiOutput("stat_test_ui"),
   
   selectInput(
@@ -79,6 +80,34 @@ ui <- page_navbar(
       "Post hoc: Compute achieved power",
       "Sensitivity: Compute effect size"
     )
-  ),
-)
+  ), 
   
+  sliderInput(
+    "power",
+    "Power",
+    min = 0.50,
+    max = 0.99,
+    value = 0.80
+  ),
+  
+  sliderInput(
+    "sig_level",
+    "Alpha",
+    min = 0.01,
+    max = 0.10,
+    value = 0.05
+  ),
+  
+  numericInput(
+    "effect",
+    "Effect Size",
+    value = 0.5,
+    step = 0.1
+  ),
+  
+  actionButton(
+    "calc",
+    "Calculate",
+    class = "btn-primary w-100"
+  ), 
+) 
