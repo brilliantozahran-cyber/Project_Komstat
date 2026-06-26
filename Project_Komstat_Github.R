@@ -68,6 +68,17 @@ ui <- page_navbar(
         "F tests"
       )
     )
-  )
+  ),
+  uiOutput("stat_test_ui"),
+  
+  selectInput(
+    "power_type",
+    "Type of Power Analysis",
+    choices = c(
+      "A priori: Compute required sample size",
+      "Post hoc: Compute achieved power",
+      "Sensitivity: Compute effect size"
+    )
+  ),
 )
   
