@@ -362,4 +362,139 @@ server <- function(input, output, session){
       theme_minimal(base_size = 14) +
       labs(title = "Power Curve", x = "Effect Size", y = "Power")
   })
+  
+  # Tab 2 Outputs
+  output$heatmap_plot <- renderPlot({
+    df <- sens_data()
+    req(df)
+    
+    ggplot(df, aes(x = factor(EffectSize), y = factor(Power), fill = Required_N)) +
+      geom_tile(color = "white", linewidth = 0.5) +
+      scale_fill_gradient(low = "#E3F2FD", high = "#0D47A1", na.value = "grey90") +
+      geom_text(aes(label = Required_N), color = "black", size = 3.5) +
+      theme_minimal(base_size = 13) +
+      labs(x = "Effect Size", y = "Power (1 - Beta)", fill = "Sample Size (N)") +
+      theme(panel.grid = element_blank())
+  })
+  
+  output$curve_plot <- renderPlot({
+    df <- sens_data()
+    req(df)
+    
+    ggplot(df, aes(x = EffectSize, y = Required_N, color = factor(Power), group = Power)) +
+      geom_line(linewidth = 1.2) +
+      geom_point(size = 2) +
+      scale_color_brewer(palette = "Set1") +
+      theme_minimal(base_size = 13) +
+      labs(x = "Effect Size", y = "Required Sample Size (N)", color = "Power Level")
+  })
+  
+  output$sens_table <- renderTable({
+    df <- sens_data()
+    req(df)
+    
+    df_wide <- reshape(df, idvar = "EffectSize", timevar = "Power", direction = "wide")
+    pow_seq <- c(0.70, 0.80, 0.85, 0.90, 0.95)
+    colnames(df_wide) <- c("Effect Size", paste0("Power = ", pow_seq))
+    
+    df_wide
+  }, digits = 2, align = "c", striped = TRUE, hover = TRUE)
+  
+  # Tab 3: Effect Size Calculator
+  cohens_d_calc <- reactive({
+    req(input$sd_pooled)
+    if(input$sd_pooled <= 0) return(0)
+    abs(input$mean1 - input$mean2) / input$sd_pooled
+  })
+  
+  output$cohens_d_result <- renderUI({
+    d_val <- round(cohens_d_calc(), 3)
+    magnitude <- if(d_val < 0.2) {
+      "Negligible (Efek sangat kecil / dapat diabaikan)"
+    } else if(d_val >= 0.2 && d_val < 0.5) {
+      "Small Effect (Efek Kecil)"
+    } else if(d_val >= 0.5 && d_val < 0.8) {
+      "Medium Effect (Efek Sedang)"
+    } else {
+      "Large Effect (Efek Besar)"
+    }
+    
+    HTML(paste0(
+      "<div style='margin-top: 15px;'>",
+      "<h5>Nilai Efek Terhitung:</h5>",
+      "<h1 style='color: #0D47A1; font-weight: bold;'>", d_val, "</h1>",
+      "<h5>Klasifikasi (Cohen's Criteria):</h5>",
+      "<span class='badge bg-primary' style='font-size: 14px; padding: 8px 12px;'>", magnitude, "</span>",
+      "<hr style='margin-top:25px;'/>",
+      "<p class='text-muted'>*Gunakan tombol di bawah kolom input untuk mentransfer nilai ini secara instan ke menu utama di sidebar kiri.</p>",
+      "</div>"
+    ))
+  })
+  
+  observeEvent(input$send_effect, {
+    d_val <- round(cohens_d_calc(), 3)
+    updateNumericInput(session, "effect", value = d_val)
+    showNotification(
+      paste0("Berhasil! Nilai Effect Size (", d_val, ") disalin ke konfigurasi utama. Silakan klik 'Calculate' untuk memperbarui data."),
+      type = "message",
+      duration = 6
+    )
+  })
+  
+  # Tab 4: Automatic Interpretation
+  output$interpretation_text <- renderUI({
+    req(calc_res())
+    res <- calc_res()
+    
+    stat_name_id <- switch(
+      input$stat_test,
+      "two.sample" = "Uji t Dua Sampel Independen (Independent Samples t-test)",
+      "paired" = "Uji t Sampel Berpasangan (Paired Samples t-test)",
+      "one.sample" = "Uji t Satu Sampel (One-Sample t-test)",
+      "correlation" = "Analisis Korelasi Bivariat (Bivariate Correlation Model)",
+      "anova" = "Uji ANOVA Satu Arah (One-Way ANOVA)",
+      "anova.rm" = "Uji ANOVA Pengukuran Berulang (ANOVA Repeated Measures, Within Factors)"
+    )
+    
+    effect_name <- switch(
+      input$test_family,
+      "t tests" = paste0("Cohen's d sebesar ", input$effect),
+      "Correlation and Regression" = paste0("Koefisien Korelasi (r) sebesar ", input$effect),
+      "F tests" = paste0("Effect Size f sebesar ", input$effect)
+    )
+    
+    n_per_group <- ceiling(res$n)
+    sample_text <- ""
+    
+    if(input$stat_test == "two.sample") {
+      sample_text <- paste0("<strong>", n_per_group, " responden per kelompok</strong> (sehingga total keseluruhan sampel yang dibutuhkan adalah <strong>", n_per_group * 2, " responden</strong>)")
+    } else if(input$stat_test == "anova") {
+      sample_text <- paste0("<strong>", n_per_group, " responden per kelompok</strong> (sehingga total sampel untuk 3 kelompok adalah <strong>", n_per_group * 3, " responden</strong>)")
+    } else if(input$stat_test == "anova.rm") {
+      sample_text <- paste0("<strong>", n_per_group, " subjek/responden tunggal</strong> yang diukur secara berulang pada setiap kondisi/faktor waktu penelitian")
+    } else {
+      sample_text <- paste0("<strong>", n_per_group, " responden</strong>")
+    }
+    
+    HTML(paste0(
+      "<h5>1. Draf untuk Bab 3: Metodologi Penelitian (Sub-bab Ukuran Sampel)</h5>",
+      "<blockquote>",
+      "Dalam penelitian ini, penentuan ukuran sampel minimum dilakukan secara objektif menggunakan analisis kekuatan uji statistik (<em>A priori Power Analysis</em>). ",
+      "Prosedur ini diterapkan untuk memastikan bahwa desain penelitian memiliki sensitivitas yang memadai untuk mendeteksi efek yang diteliti serta menekan probabilitas terjadinya Kesalahan Tipe II (<em>Type II Error</em>). ",
+      "Berdasarkan jenis analisis data yang akan digunakan, yaitu metode <strong>", stat_name_id, "</strong>, peneliti menetapkan kriteria pengujian berupa tingkat signifikansi (&alpha;) sebesar ", input$sig_level, " dan target kuas uji statistik (<em>statistical power</em>, 1-&beta;) sebesar ", input$power, ". ",
+      "Dengan mengasumsikan standar nilai ", effect_name, ", hasil kalkulasi menunjukkan bahwa ukuran sampel minimum yang wajib dipenuhi adalah sebesar ", sample_text, ". ",
+      "Dengan jumlah tersebut, pengujian hipotesis dalam penelitian ini diproyeksikan memiliki akurasi dan validitas statistikal yang tinggi.",
+      "</blockquote>",
+      
+      "<br/><h5>2. Draf untuk Jurnal / Artikel Ilmiah (Format Ringkas)</h5>",
+      "<blockquote>",
+      "Ukuran sampel minimum ditentukan melalui <em>a priori power analysis</em> menggunakan paket statistika <code>pwr</code> untuk prosedur <strong>", stat_name_id, "</strong>. ",
+      "Melalui spesifikasi parameter tingkat kekeliruan &alpha; = ", input$sig_level, ", kuas uji (<em>power</em>) = ", input$power, ", serta estimasi ukuran efek sebesar ", input$effect, ", ",
+      "diperoleh rekomendasi ukuran sampel minimum sebesar N = ", if(input$stat_test == "two.sample") n_per_group * 2 else if(input$stat_test == "anova") n_per_group * 3 else n_per_group, ". ",
+      "Oleh karena itu, ukuran sampel yang dilibatkan dalam penelitian ini telah memenuhi batas ambang kecukupan metodologis guna menjamin keterandalan kesimpulan statistik.",
+      "</blockquote>"
+    ))
+  })
 }
+
+shinyApp(ui, server)
